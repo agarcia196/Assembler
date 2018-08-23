@@ -14,34 +14,68 @@
 .def ByteB3 = R23
 .def SignoB = R25
 .def Pulsadores = R26
+.def SalidaSC= R27
 .def NibleBajo = R30
 .def NibleAlto = R31
 
 Main:
 ;Cargar de Número 1 
-ldi ByteA0,0b01110111
-ldi ByteA1,0b01111000
-ldi ByteA2,0b00000111
-ldi ByteA3,0b01110000
-ldi SignoA,0b00000100
+ldi ByteA0,0b11111111
+ldi ByteA1,0b01000000
+ldi ByteA2,0b10000110
+ldi ByteA3,0b11100001
+ldi SignoA,0b00100000
 
 ;Cargar de Número 2
-ldi ByteB0,0b01001100
-ldi ByteB1,0b00100000
-ldi ByteB2,0b10001100
-ldi ByteB3,0b00111000
-ldi SignoB,0b00000000
+ldi ByteB0,0b11111111
+ldi ByteB1,0b11001111
+ldi ByteB2,0b10111100
+ldi ByteB3,0b11001111
+ldi SignoB,0b00100000
 
 ldi NibleBajo,0b00001111
 ldi NibleAlto,0b11110000
+
 rjmp Validar_Signo
 
 Validar_Signo:
 CP SignoA,SignoB 
 BREQ Sumar ;Si el valor de Z=1 entonces brinca a Sumar
-BST SignoA,4 ; Toma el bit 4 y lo asigna a T
-BRTS Restar1 ;Si el valor de T=1 entonces brinca a Restar1
-rjmp Restar2
+CLN
+BRPL Verificar_Mayor_Numero
+
+Validar_Signo1:
+BREQ Restar2 ;Si el valor de Z=1 entonces brinca a Restar2
+rjmp Restar1
+
+Verificar_Mayor_Numero:
+CP ByteA3,ByteB3
+BREQ Verificar_Byte2
+BRLO A_SignoB
+rjmp Validar_Signo1
+
+Verificar_Byte2:
+CP ByteA2,ByteB2
+BREQ Verificar_Byte1
+BRLO A_SignoB
+rjmp Validar_Signo1
+
+Verificar_Byte1:
+CP ByteA1,ByteB1
+BREQ Verificar_Byte0
+BRLO A_SignoB
+rjmp Validar_Signo1
+
+Verificar_Byte0:
+CP ByteA0,ByteB0
+BRLO A_SignoB
+rjmp Validar_Signo1
+
+A_SignoB:
+BST SignoB,5
+BLD SignoA,5
+SEZ
+rjmp Validar_Signo1
 
 Sumar:
 CLC ; Pone en bajo la bandera de carry C=0
@@ -49,6 +83,14 @@ ADD ByteA0,ByteB0 ; Se realiza una suma simple del primer Byte de cada número
 ADC ByteA1,ByteB1 ; Se realiza una suma con carry del segundo Byte de cada número
 ADC ByteA2,ByteB2 ; Se realiza una suma con carry del tercer Byte de cada número
 ADC ByteA3,ByteB3 ; Se realiza una suma con carry del cuarto Byte de cada número
+BRCS MeterCarry
+rjmp Imprimir
+
+SumaSinCarry:
+ADD ByteA0,ByteB0 ; Se realiza una suma simple del primer Byte de cada número
+ADD ByteA1,ByteB1 ; Se realiza una suma simple del Segundo Byte de cada número
+ADD ByteA2,ByteB2 ; Se realiza una suma simple del Tercero Byte de cada número
+ADD ByteA3,ByteB3 ; Se realiza una suma simple del Cuarto Byte de cada número
 rjmp Imprimir
 
 Restar1: ;Resta con ByteA negativo
@@ -56,14 +98,20 @@ NEG ByteA0 ; Complemento a 2 al ByteA0
 NEG ByteA1 ; Complemento a 2 al ByteA1
 NEG ByteA2 ; Complemento a 2 al ByteA2
 NEG ByteA3 ; Complemento a 2 al ByteA3
-rjmp Sumar
+rjmp SumaSinCarry
 
 Restar2: ;Resta con ByteB negativo
 NEG ByteB0 ; Complemento a 2 al ByteB0
 NEG ByteB1 ; Complemento a 2 al ByteB1
 NEG ByteB2 ; Complemento a 2 al ByteB2
 NEG ByteB3 ; Complemento a 2 al ByteB3
-rjmp Sumar
+rjmp SumaSinCarry
+
+MeterCarry:
+CLC
+SET
+BLD SignoA,4
+rjmp Imprimir
 
 Imprimir:
 out DDRB,NibleBajo
@@ -95,7 +143,15 @@ OUT PORTD,ByteA2
 rjmp Imprimir
 
 ImprimirByte3:
-out PORTB,ByteA3
+;MOV ByteB3,ByteA3
+;bst SignoA,4; Se captura bit 4 y se envia a la Bandera T
+;bld ByteB3,4; Se asigna valor de bandera T a el bit 5 para llevar el acarreo
+;bst SignoA,5; Se captura bit 4 y se envia a la Bandera T
+;bld ByteB3,5; Se asigna valor de bandera T a el bit 5 para llevar el acarreo
 OUT PORTD,ByteA3
-rjmp Imprimir
+out PORTB,ByteA3
+OUT PORTC,SignoA
+In Pulsadores,PinC
+CPI Pulsadores,8
+BRNE Imprimir
 
